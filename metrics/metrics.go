@@ -16,6 +16,7 @@ type Metrics struct {
 	ConnectStatus   *prometheus.GaugeVec
 	SubscribeStatus *prometheus.GaugeVec
 	ErrorCount      *prometheus.CounterVec
+	SyncCount       *prometheus.CounterVec
 	states          map[string]map[string]model.InterfaceState
 	mu              sync.Mutex
 	deviceLabels    map[string]map[string]string
@@ -67,6 +68,13 @@ func Init(extraLabelNames []string) {
 			},
 			append([]string{"device", "type"}, extraLabelNames...),
 		),
+		SyncCount: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "gnmi_sync_total",
+				Help: "Total times of gNMI sync",
+			},
+			append([]string{"device", "type"}, extraLabelNames...),
+		),
 		states:          make(map[string]map[string]model.InterfaceState),
 		deviceLabels:    make(map[string]map[string]string),
 		extraLabelNames: extraLabelNames,
@@ -78,6 +86,7 @@ func Init(extraLabelNames []string) {
 	prometheus.MustRegister(appMetrics.ConnectStatus)
 	prometheus.MustRegister(appMetrics.SubscribeStatus)
 	prometheus.MustRegister(appMetrics.ErrorCount)
+	prometheus.MustRegister(appMetrics.SyncCount)
 }
 
 func SetDeviceLabels(switches []config.ResolvedSwitch) {
@@ -206,6 +215,28 @@ func IncError(device, errorType string) {
 	appMetrics.ErrorCount.With(labels).Inc()
 }
 
+func IncSync(device, syncType string) {
+	appMetrics.mu.Lock()
+	defer appMetrics.mu.Unlock()
+
+	labels := map[string]string{
+		"device": device,
+		"type":   syncType,
+	}
+	deviceLabels := appMetrics.deviceLabels[device]
+	if deviceLabels == nil {
+		deviceLabels = make(map[string]string)
+	}
+	for _, labelName := range appMetrics.extraLabelNames {
+		if value, exists := deviceLabels[labelName]; exists {
+			labels[labelName] = value
+		} else {
+			labels[labelName] = ""
+		}
+	}
+	appMetrics.SyncCount.With(labels).Inc()
+}
+
 func GetSwitchStatus(devices []string) map[string]map[string]interface{} {
 	appMetrics.mu.Lock()
 	defer appMetrics.mu.Unlock()
@@ -253,6 +284,24 @@ func GetSwitchStatus(devices []string) map[string]map[string]interface{} {
 				data["errors"].(map[string]float64)[errType] = 0.0
 			}
 		}
+		data["sync"] = make(map[string]float64)
+		for _, syncType := range []string{"subscribe"} {
+			syncLabels := map[string]string{"device": device, "type": syncType}
+			for _, labelName := range appMetrics.extraLabelNames {
+				if value, exists := deviceLabels[labelName]; exists {
+					syncLabels[labelName] = value
+				} else {
+					syncLabels[labelName] = ""
+				}
+			}
+			if m, err := appMetrics.SyncCount.GetMetricWith(syncLabels); err == nil {
+
+				data["sync"].(map[string]float64)[syncType] = getCounterValue(m)
+			} else {
+				data["sync"].(map[string]float64)[syncType] = 0.0
+			}
+		}
+
 		status[device] = data
 	}
 	return status

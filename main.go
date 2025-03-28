@@ -88,6 +88,7 @@ func statusHandler(w http.ResponseWriter, r *http.Request, devices []string) {
             <th>Device</th>
             <th>Connected</th>
             <th>Subscribed</th>
+            <th>Synced</th>
             <th>Errors (connect/subscribe/parse/panic)</th>
         </tr>
         {{range $device, $data := .}}
@@ -95,6 +96,7 @@ func statusHandler(w http.ResponseWriter, r *http.Request, devices []string) {
             <td>{{$device}}</td>
             <td>{{if eq $data.connected 1.0}}Yes{{else}}No{{end}}</td>
             <td>{{if eq $data.subscribed 1.0}}Yes{{else}}No{{end}}</td>
+            <td>{{printf "%.0f" $data.sync.subscribe}}</td>
             <td>{{printf "%.0f/%.0f/%.0f/%.0f" $data.errors.connect $data.errors.subscribe $data.errors.parse $data.errors.panic}}</td>
         </tr>
         {{end}}

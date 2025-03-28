@@ -153,6 +153,7 @@ func processResponse(device string, resp *gnmi.SubscribeResponse) {
 				metrics.Update(device, intfState)
 			}
 		}
+		metrics.IncSync(device, "subscribe")
 	case *gnmi.SubscribeResponse_SyncResponse:
 		log.Printf("Sync completed for %s: %v", device, r.SyncResponse)
 	case *gnmi.SubscribeResponse_Error:
