@@ -1,0 +1,20 @@
+server:
+  port: 9527
+default: # 全局默认值
+  sample_interval: 10 # 单位秒
+  port: 50051
+  username: "admin"
+  password: "123456"
+  labels:
+    region: "north"
+    env: "prod"
+    device_type: "switch"
+    device_model: "h3c"
+switches:
+  - address: "10.10.10.10"
+    labels:
+      env: "dev" # 覆盖 default 的 env
+  - address: "10.12.12.149"
+#    username: "admin" # 覆盖默认值
+#    password: "secret" # 覆盖默认值
+#    port: 50052 # 覆盖默认值
